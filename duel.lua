@@ -43,15 +43,14 @@ for i=1,2 do
   params:add_number(i.."feedback", "buffer "..buffers[i].." feedback", 0, 110, 0)
 end
 
+local clk
 
 function init()
-  local screen_timer = metro.init()
-  screen_timer.time = 1/15
-  screen_timer.event = function() redraw() end
-  screen_timer:start()
 
-  
-  -- softcut setup
+  -- clock
+
+
+  -- softcut
   softcut.buffer_clear()
   audio.level_cut(1)
   audio.level_adc_cut(1)
@@ -61,7 +60,7 @@ function init()
   audio.level_cut(1)
   audio.level_adc_cut(1)
   audio.level_eng_cut(1)
-  -- softcut voices
+
   for si = 1,2 do
     softcut.level(si,1)
     softcut.level_slew_time(si,0.01)
@@ -81,20 +80,50 @@ function init()
     softcut.filter_dry(si, 1)
     softcut.pan(si, buffer_pan[si])
   end
-  
+
+
+  clk = clock.run(beat)
+
   refresh_arc()
+
+
+  -- screen
+  local screen_timer = metro.init()
+  screen_timer.time = 1/12
+  screen_timer.event = function() redraw() end
+  screen_timer:start()
+
+  
+
   
 end
+
+local clock_indicator = true
+
+function beat()
+  while true do
+    clock.sync(1)
+    -- sc.position(2,10+b)
+    -- sc.level(2,1.0)
+    -- clock.sleep(1/32*math.random(3))
+    -- sc.level(2,0)
+    -- b = (b + 0.05) % 2
+    if clock_indicator then clock_indicator = false else clock_indicator = true end
+  end
+end
+
+
 
 function enc()
 
 end
 
 function key(n, z)
-
+  print(clock.get_beat_sec())
 end
 
-local time_cursor_1 = 1
+
+
 
 function a.delta(n, d)
   if (n == 2) then
@@ -105,8 +134,6 @@ function a.delta(n, d)
     params:delta("2feedback", d/11)
   end
 
-
-
   if (n == 1) then
     -- Channel 1 Time
     params:delta("1time", d/5)
@@ -116,25 +143,25 @@ function a.delta(n, d)
     params:delta("2time", d/5)
   end
 
-
   refresh_arc()
 end
 
 
 function redraw()
+  screen.clear()
+  if clock_indicator then
+    screen.pixel(10,10)
+  else
+    screen.pixel(14,10)
+  end
+  screen.fill()
+  screen:update()
 end
 
 
 function refresh_arc()
-  -- Draw Screen
-
-  -- Draw Arc
-  local f
-  local level = 10
-
 
   -- time
-
   for i=1,#time_length_options do
     level = 4
     if (time_length_options[i]) == params:get("1time") then level = 15 end
@@ -147,7 +174,9 @@ function refresh_arc()
     a:led(4,(time_length_options[i]*4)+29,level) -- maaagic numberrrr
   end
 
-
+  -- feedback
+  local f
+  local level = 10
   f = params:get("1feedback")
   fp = f/110
   level = 15*fp
