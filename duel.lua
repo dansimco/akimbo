@@ -25,8 +25,7 @@
 -- set_start
 -- hold  
 
-
-local formatters=require 'formatters'
+local lattice=require 'lattice'
 local util=require 'util'
 local tabutil=require 'tabutil'
 local a = arc.connect(1)
@@ -43,7 +42,7 @@ local tau = math.pi * 2
 local buffers = {"A", "B"}
 local time_length_options = {1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 local time_scale_options = {"1/8", "1", "+16"}
-local beat_time = 0 -- ms of a beat from clock time
+
 for i=1,2 do
   params:add_separator("Buffer " .. buffers[i])
   params:add_option(i.."time","buffer "..buffers[i].." time (beats)",time_length_options,9)
@@ -55,36 +54,9 @@ end
 function init()
   -- softcut
   softcut.buffer_clear()
-  audio.level_cut(1)
-  audio.level_adc_cut(1)
-  audio.level_tape_cut(0)
-  audio.level_eng_cut(0)
-  local buffer_pan = {-1, 1}
-  audio.level_cut(1)
-  audio.level_adc_cut(1)
-  audio.level_eng_cut(1)
 
-  for si = 1,2 do
-    softcut.level(si,1)
-    softcut.level_slew_time(si,0.01)
-    softcut.level_input_cut(si, si, 1.0)
-    softcut.rate(si, 1)
-    softcut.rate_slew_time(si,0.1)
-    softcut.loop_start(si, 0)
-    softcut.loop_end(si, 5)
-    softcut.loop(si, 1)
-    softcut.fade_time(si, 0.01)
-    softcut.rec(si, 1)
-    softcut.rec_level(si, 1)
-    softcut.pre_level(si, 0)
-    softcut.position(si, 0)
-    softcut.buffer(si,si)
-    softcut.enable(si, 1)
-    softcut.filter_dry(si, 1)
-    softcut.pan(si, buffer_pan[si])
-  end
 
-  clk = clock.run(beat)
+  setup_clocks()
 
   refresh_arc()
 
@@ -104,19 +76,82 @@ end
 --
 ----------------------------
 
-local clk
-local clock_indicator = true
 
-function beat()
-  while true do
-    clock.sync(1)
-    -- sc.position(2,10+b)
-    -- sc.level(2,1.0)
-    -- clock.sleep(1/32*math.random(3))
-    -- sc.level(2,0)
-    -- b = (b + 0.05) % 2
-    if clock_indicator then clock_indicator = false else clock_indicator = true end
-  end
+local args = {
+  auto = true,
+  meter = 4, -- use params default
+  ppqn = 96
+}
+
+baseline_division = 16
+
+lattice1 = lattice:new(args)
+
+divisor1 = 8
+divisor2 = 8
+
+patterns = {
+  lattice1:new_pattern{
+    action = function(t)  reset_loop(1) end,
+    division = 1/(baseline_division/divisor1),
+    enabled = true
+  },
+  lattice1:new_pattern{
+    action = function(t) reset_loop(2) end,
+    division = 1/(baseline_division/divisor2),
+    enabled = true
+  }
+}
+
+function setup_clocks()
+  lattice1:start()
+end
+
+function apply_pattern_division(p)
+  local divisor = time_length_options[params:get(p .. "time")]
+  patterns[p].division = 1/(baseline_division/divisor)
+end
+
+
+function reset_loop(buffer)
+  print("reset loop " .. buffer)
+end
+
+
+
+----------------------------
+--
+--  Softcut
+--
+----------------------------
+
+audio.level_cut(1)
+audio.level_adc_cut(1)
+audio.level_tape_cut(0)
+audio.level_eng_cut(0)
+local buffer_pan = {-1, 1}
+audio.level_cut(1)
+audio.level_adc_cut(1)
+audio.level_eng_cut(1)
+
+for si = 1,2 do
+  softcut.level(si,1)
+  softcut.level_slew_time(si,0.01)
+  softcut.level_input_cut(si, si, 1.0)
+  softcut.rate(si, 1)
+  softcut.rate_slew_time(si,0.1)
+  softcut.loop_start(si, 0)
+  softcut.loop_end(si, 5)
+  softcut.loop(si, 1)
+  softcut.fade_time(si, 0.01)
+  softcut.rec(si, 1)
+  softcut.rec_level(si, 1)
+  softcut.pre_level(si, 0)
+  softcut.position(si, 0)
+  softcut.buffer(si,si)
+  softcut.enable(si, 1)
+  softcut.filter_dry(si, 1)
+  softcut.pan(si, buffer_pan[si])
 end
 
 
@@ -164,10 +199,12 @@ function a.delta(n, d)
   if (n == 1) then
     -- Channel 1 Time
     apply_time_cursor(1, d)
+    apply_pattern_division(1)
   end
 
   if (n == 4) then
     apply_time_cursor(2, d)
+    apply_pattern_division(2)
   end
 
   refresh_arc()
