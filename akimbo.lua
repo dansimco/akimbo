@@ -1,33 +1,16 @@
--- dual. a dual looping delay
-
--- Two delay buffers, left and right.
--- Quantised buffer length, controlled by arc's 1 and two
--- feedback controllerd by three and four
-
--- params
--- buffer_i_length
--- buffer_i_start
--- buffer_i_feedback
--- buffer_i_filter
--- buffer_i_direction
--- buffer_i_hold
--- buffer_i_feed
--- buffer_i_scale (=, +16, /8)
+-- Akimbo. 
+-- a synced, looping delay.
 --
--- xfade time
--- clock
+-- 
+-- Two delay buffers, left and right.
+-- Quantised buffer length, controlled by arcs 1 and 4
+-- feedback controllerd by 2 and 3
+-- based on the 4ms Dual Looping Delay
 
--- buffer methods
--- reverse
--- set_feedback
--- set_feed
--- set_length
--- set_start
--- hold  
 
-local lattice=require 'lattice'
-local util=require 'util'
-local tabutil=require 'tabutil'
+local lattice = require 'lattice'
+local util = require 'util'
+local tabutil = require 'tabutil'
 local a = arc.connect(1)
 local tau = math.pi * 2
 
@@ -73,6 +56,7 @@ end
 
 
 
+
 ----------------------------
 --
 --  Clocks
@@ -86,22 +70,17 @@ local args = {
   ppqn = 96
 }
 
-baseline_division = 16
-
 lattice1 = lattice:new(args)
-
-divisor1 = 8
-divisor2 = 8
 
 patterns = {
   lattice1:new_pattern{
     action = function(t)  reset_loop(1) end,
-    division = 1/(baseline_division/divisor1),
+    division = 1/2,
     enabled = true
   },
   lattice1:new_pattern{
     action = function(t) reset_loop(2) end,
-    division = 1/(baseline_division/divisor2),
+    division = 1/2,
     enabled = true
   }
 }
