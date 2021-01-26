@@ -26,30 +26,33 @@
 -- hold  
 
 
+local formatters=require 'formatters'
+local util=require 'util'
+local tabutil=require 'tabutil'
 local a = arc.connect(1)
 local tau = math.pi * 2
 
+
+
+----------------------------
+--
+--  Setup
+--
+----------------------------
+
 local buffers = {"A", "B"}
 local time_length_options = {1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-local time_switch_options = {"1/8", "1", "+16"}
+local time_scale_options = {"1/8", "1", "+16"}
 local beat_time = 0 -- ms of a beat from clock time
-
-
--- Params
 for i=1,2 do
   params:add_separator("Buffer " .. buffers[i])
   params:add_option(i.."time","buffer "..buffers[i].." time (beats)",time_length_options,9)
-  params:add_option(i.."time_mod","buffer "..buffers[i].." time mod",time_switch_options,1)
+  params:add_option(i.."time_scale","buffer "..buffers[i].." time mod",time_scale_options,1)
   params:add_number(i.."feedback", "buffer "..buffers[i].." feedback", 0, 110, 0)
+  params:add_number(i.."send_amount", "buffer "..buffers[i].." feedback", 0, 100, 0)
 end
 
-local clk
-
 function init()
-
-  -- clock
-
-
   -- softcut
   softcut.buffer_clear()
   audio.level_cut(1)
@@ -81,23 +84,27 @@ function init()
     softcut.pan(si, buffer_pan[si])
   end
 
-
   clk = clock.run(beat)
 
   refresh_arc()
-
 
   -- screen
   local screen_timer = metro.init()
   screen_timer.time = 1/12
   screen_timer.event = function() redraw() end
   screen_timer:start()
-
-  
-
   
 end
 
+
+
+----------------------------
+--
+--  Clocks
+--
+----------------------------
+
+local clk
 local clock_indicator = true
 
 function beat()
@@ -114,6 +121,12 @@ end
 
 
 
+----------------------------
+--
+--  Norns Inputs
+--
+----------------------------
+
 function enc()
 
 end
@@ -124,6 +137,20 @@ end
 
 
 
+----------------------------
+--
+--  ARC Inputs
+--
+----------------------------
+
+local cursor_max = 360
+local time_cursors = {180, 180} -- @todo this needs to match params 
+
+function apply_time_cursor(n, d)
+  time_cursors[n] = util.clamp(time_cursors[n] + d/3, 1, cursor_max)
+  local time_index = math.ceil((#time_length_options / cursor_max) * time_cursors[n])
+  params:set(n .. "time", time_index)
+end
 
 function a.delta(n, d)
   if (n == 2) then
@@ -136,15 +163,23 @@ function a.delta(n, d)
 
   if (n == 1) then
     -- Channel 1 Time
-    params:delta("1time", d/5)
+    apply_time_cursor(1, d)
   end
 
   if (n == 4) then
-    params:delta("2time", d/5)
+    apply_time_cursor(2, d)
   end
 
   refresh_arc()
 end
+
+
+
+----------------------------
+--
+--  Screen Drawing
+--
+----------------------------
 
 
 function redraw()
@@ -159,29 +194,39 @@ function redraw()
 end
 
 
+
+----------------------------
+--
+--  ARC Drawing
+--
+----------------------------
+
+local time_indicators = {}
+for i=1,#time_length_options do
+  time_indicators[i] = (time_length_options[i]*4)+29 -- magic number to make it look cool
+end
+
 function refresh_arc()
-
-  -- time
-  for i=1,#time_length_options do
-    level = 4
-    if (time_length_options[i]) == params:get("1time") then level = 15 end
-    a:led(1,(time_length_options[i]*4)+29,level) -- maaagic numberrrr
+  -- draw time indicators
+  local indicator_level = 4
+  for i=1,#time_indicators do
+    a:led(1, time_indicators[i], indicator_level)
+    a:led(4, time_indicators[i], indicator_level)
   end
 
-  for i=1,#time_length_options do
-    level = 4
-    if (time_length_options[i]) == params:get("2time") then level = 15 end
-    a:led(4,(time_length_options[i]*4)+29,level) -- maaagic numberrrr
-  end
+  -- draw active time selection
+  a:led(1, time_indicators[params:get("1time")], 15)
+  a:led(4, time_indicators[params:get("2time")], 15)
 
-  -- feedback
+  -- draw feedback
   local f
   local level = 10
+  -- 1 feedback 
   f = params:get("1feedback")
   fp = f/110
   level = 15*fp
   a:segment(2, 0, tau*fp-0.001, level)
-
+  -- 2 feedback
   f = params:get("2feedback")
   fp = f/110
   level = 15*fp
@@ -189,3 +234,8 @@ function refresh_arc()
 
   a:refresh()
 end
+
+
+
+
+
