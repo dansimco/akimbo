@@ -52,12 +52,8 @@ for i=1,2 do
 end
 
 function init()
-  -- softcut
-  softcut.buffer_clear()
-
-
+  setup_softcut()
   setup_clocks()
-
   refresh_arc()
 
   -- screen
@@ -125,36 +121,50 @@ end
 --
 ----------------------------
 
-audio.level_cut(1)
-audio.level_adc_cut(1)
-audio.level_tape_cut(0)
-audio.level_eng_cut(0)
-local buffer_pan = {-1, 1}
-audio.level_cut(1)
-audio.level_adc_cut(1)
-audio.level_eng_cut(1)
+function setup_softcut()
 
-for si = 1,2 do
-  softcut.level(si,1)
-  softcut.level_slew_time(si,0.01)
-  softcut.level_input_cut(si, si, 1.0)
-  softcut.rate(si, 1)
-  softcut.rate_slew_time(si,0.1)
-  softcut.loop_start(si, 0)
-  softcut.loop_end(si, 5)
-  softcut.loop(si, 1)
-  softcut.fade_time(si, 0.01)
-  softcut.rec(si, 1)
-  softcut.rec_level(si, 1)
-  softcut.pre_level(si, 0)
-  softcut.position(si, 0)
-  softcut.buffer(si,si)
-  softcut.enable(si, 1)
-  softcut.filter_dry(si, 1)
-  softcut.pan(si, buffer_pan[si])
+  audio.level_cut(1)
+  audio.level_adc_cut(1)
+  audio.level_tape_cut(0)
+  audio.level_eng_cut(1)
+
+  local buffer_pan = {-1, 1}
+
+  for si = 1,2 do
+
+    softcut.level(si,1)
+    softcut.level_slew_time(si,0.01)
+    softcut.level_input_cut(si, 1, 1.0)
+    softcut.level_cut_cut(si, si, 1.0)
+    softcut.rate(si, 1)
+    softcut.rate_slew_time(si,0.1)
+
+    softcut.loop_start(si, 0)
+    softcut.loop_end(si, 5)
+    softcut.loop(si, 1)
+    
+    softcut.fade_time(si, 0.01)
+    softcut.rec(si, 1)
+
+    softcut.rec_level(si, 1)
+    softcut.pre_level(si, 0.5)
+    
+    softcut.position(si, 0)
+    softcut.buffer(si,si)
+    
+    -- softcut.filter_dry(si, 1)
+    softcut.pan(si, buffer_pan[si])
+  end
+
+
+    -- softcut.buffer_clear()
+  softcut.enable(1, 1)
+  softcut.enable(2, 1)
+  softcut.play(1, 0)
+  softcut.play(2, 0)
+
+  print("SOFTCUT GO")
 end
-
-
 
 ----------------------------
 --
@@ -221,12 +231,10 @@ end
 
 function redraw()
   screen.clear()
-  if clock_indicator then
-    screen.pixel(10,10)
-  else
-    screen.pixel(14,10)
-  end
-  screen.fill()
+
+
+
+
   screen:update()
 end
 
